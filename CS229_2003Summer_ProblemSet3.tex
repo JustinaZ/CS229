@@ -1,0 +1,810 @@
+% https://queuestatus.com/queues/2365
+\documentclass{article}
+
+\usepackage{datetime2}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathrsfs}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{float} 
+%\usepackage{url}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{verbatim}
+\usepackage{cancel}
+\usepackage{dsfont}
+
+\newcommand{\verbatimtext}[1]{%
+  \begin{verbatim}
+  #1
+  \end{verbatim}
+}
+
+
+\definecolor{OliveGreen}{rgb}{0.5, 0.5, 0}
+\definecolor{RoyalBlue}{rgb}{0.255, 0.41, 0.882}
+\definecolor{ForestGreen}{RGB}{34, 139, 34}
+\definecolor{DarkGreen}{RGB}{0, 100, 0}
+%\definecolor{VineRed}{RGB}{142, 0, 33}
+\definecolor{VineRed}{RGB}{178, 34, 34}
+\definecolor{BurgundyRed}{RGB}{128, 0, 32}
+\newcommand{\bl}[1]{\boldsymbol{#1}}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% Margins
+\usepackage[top=2.5cm, left=3cm, right=3cm, bottom=4.0cm]{geometry}
+% Colour table cells
+%\usepackage[table]{xcolor}
+
+% Get larger line spacing in table
+\newcommand{\tablespace}{\\[1.25mm]}
+\newcommand\Tstrut{\rule{0pt}{2.6ex}}         % = `top' strut
+\newcommand\tstrut{\rule{0pt}{2.0ex}}         % = `top' strut
+\newcommand\Bstrut{\rule[-0.9ex]{0pt}{0pt}}   % = `bottom' strut
+
+%%%%%%%%%%%%%%%%%
+%     Title     %
+%%%%%%%%%%%%%%%%%
+\title{CS 229 Problem Set 3 Solutions}
+\author{Justina \v{Z}urauskien\.{e} \\ SUNet: }
+\date{2023 Summer}
+
+\begin{document}
+\maketitle
+
+%%%%%%%%%%%%%%%%%
+%   Problem 1   %
+%%%%%%%%%%%%%%%%%
+\section*{Problem 1: K-means for compression}
+In this problem, we will apply the K-means algorithm to lossy image compression, by reducing the number of colors used in an image. We will be using the files \texttt{src/k means/peppers-small.tiff} and \texttt{src/k means/peppers-large.tiff}.
+
+The \texttt{peppers-large.tiff} file contains a $512 \times 512$ image of peppers represented in 24-bit color. This means that, for each of the 262,144 pixels in the image, there are three 8-bit numbers (each ranging from 0 to 255) that represent the red, green, and blue intensity values for that pixel. The straightforward representation of this image therefore takes about $262144 \times 3 = 786432$ bytes (a byte being 8 bits). To compress the image, we will use K-means to reduce the image to $k = 16$ colors. More specifically, each pixel in the image is considered a point in the three-dimensional $(r, g, b)$-space. To compress the image, we will cluster these points in color-space into 16 clusters, and replace each pixel with the closest cluster centroid.
+
+Follow the instructions below. Be warned that some of these operations can take a while (several minutes even on a fast computer)!
+
+\begin{enumerate}[label=\alph*)]
+    \item \textbf{[15 points]} [Coding Problem] K-Means Compression Implementation. First, let us look at our data. From the \texttt{src/k means/} directory, open an interactive Python prompt, and type:
+\begin{verbatim}
+from matplotlib.image import imread
+import matplotlib.pyplot as plt
+
+A = imread('peppers-large.tiff')
+\end{verbatim}
+Now, \texttt{A} is a ``three-dimensional matrix," and \texttt{A[:,:,0]}, \texttt{A[:,:,1]}, and \texttt{A[:,:,2]} are $512 \times 512$ arrays that respectively contain the red, green, and blue values for each pixel. Enter \texttt{plt.imshow(A); plt.show()} to display the image.
+
+Since the large image has 262,144 pixels and would take a while to cluster, we will instead run vector quantization on a smaller image. Repeat (a) with \texttt{peppers-small.tiff}.
+
+Next, we will implement image compression in the file \texttt{src/k means/k means.py} which has some starter code. Treating each pixel’s $(r, g, b)$ values as an element of $\mathbb{R}^3$, implement K-means with 16 clusters on the pixel data from this smaller image, iterating (preferably) to convergence, but in no case for less than 30 iterations. For initialization, set each cluster centroid to the $(r, g, b)$-values of a randomly chosen pixel in the image.
+
+Take the image of \texttt{peppers-large.tiff}, and replace each pixel’s (r,g,b) values with the value of the closest cluster centroid from the set of centroids computed with \texttt{peppers-small.tiff}. Visually compare it to the original image to verify that your implementation is reasonable. \textbf{Include in your write-up a copy of this compressed image alongside the original image.}
+
+\textbf{Answer:}
+
+These are the results:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width = \textwidth]{k_means_result.png}
+    \label{fig:peppers}
+\end{figure}
+
+%================================================
+
+\item \textbf{[5 points]} Compression Factor.
+If we represent the image with these reduced (16) colors, by (approximately) what factor have we compressed the image?
+
+
+
+\textbf{Answer:}
+
+Before compression image of peppers was represented as 24 bits ($2^{24}$ different colours/tones); after compression we have 4 bits ($16 = 2^4$ different colours) representation. Therefore, here we have reduced image representation approximately by a factor of  $24/4 = 6$. 
+
+Reference \href{http://preservationtutorial.library.cornell.edu/tutorial/intro/intro-04.html#:~:text=A%20color%20image%20is%20typically,(2%2024%20)%20color%20values}{source}.
+%================================================
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%
+%   Problem 2   %
+%%%%%%%%%%%%%%%%%
+
+
+\section*{Problem 2: Semi-supervised EM
+}
+
+Expectation Maximization (EM) is a classical algorithm for unsupervised learning (i.e., learning with hidden or latent variables). In this problem, we will explore one of the ways in which the EM algorithm can be adapted to the semi-supervised setting, where we have some labeled examples along with unlabeled examples.
+
+In the standard unsupervised setting, we have $n \in \mathbb{N}$ unlabeled examples $\{x^{(1)}, \ldots, x^{(n)}\}$. We wish to learn the parameters of $p(x, z; \theta)$ from the data, but $z^{(i)}$'s are not observed. The classical EM algorithm is designed for this very purpose, where we maximize the intractable $p(x; \theta)$ indirectly by iteratively performing the E-step and M-step, each time maximizing a tractable lower bound of $p(x; \theta)$. Our objective can be concretely written as:
+
+\[
+\ell_{\text{unsup}}(\theta) = \sum_{i=1}^{n} \log p(x^{(i)}; \theta) = \sum_{i=1}^{n} \log \sum_{z}  p(x^{(i)}, z; \theta)
+\]
+
+Now, we will attempt to construct an extension of EM to the semi-supervised setting. Let us suppose we have an \textit{additional} $\tilde{n} \in \mathbb{N}$ labeled examples $\{(\tilde{x}^{(1)},\tilde{z}^{(1)}), \ldots, (\tilde{x}^{(\tilde{n})},\tilde{z}^{(\tilde{n})})\}$ where both $x$ and $z$ are observed. We want to simultaneously maximize the marginal likelihood of the parameters using the unlabeled examples and the full likelihood of the parameters using the labeled examples by optimizing their weighted sum (with some hyperparameter $\alpha$). More concretely, our semi-supervised objective $l_{\text{semi-sup}}(\theta)$ can be written as:
+\[
+l_{\text{sup}}(\theta) = \sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta)
+\]
+
+\[
+l_{\text{semi-sup}}(\theta) = l_{\text{unsup}}(\theta) + \alpha l_{\text{sup}}(\theta)
+\]
+We can derive the EM steps for the semi-supervised setting using the same approach and steps as before. You are \emph{strongly encouraged} to show to yourself (no need to include in the write-up) that we end up with:
+
+\textbf{E-step (semi-supervised)}
+
+For each $i \in \{1,\ldots,n\}$, set
+\[
+Q_i^{(t)}(z) := p(z|x^{(i)}; \theta^{(t)})
+\]
+
+\textbf{M-step (semi-supervised)}
+
+\[
+\theta^{(t+1)} := \arg\max_{\theta} \left[\sum_{i=1}^{n} \left(\sum_{z}Q_i^{(t)}(z)\log \frac{p(x^{(i)},z;\theta)}{Q_i^{(t)}(z)}\right)   + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta)\right)\right]
+\]
+
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{[5 points]} Convergence. First we will show that this algorithm eventually converges. In order to prove this, it is sufficient to show that our semi-supervised objective $\ell_{\text{semi-sup}}(\theta) $ monotonically increases with each iteration of E and M step. Specifically, let $\theta(t)$ be the parameters obtained at the end of $t$ EM-steps. Show that $\ell_{\text{semi-sup}}(\theta^{(t+1)}) \geq \ell_{\text{semi-sup}}(\theta^{(t)}).$
+
+\textbf{Answer:}
+
+Using definition from above, we have
+\begin{align*}
+l_{\text{semi-sup}}(\theta^{(t+1)}) &= l_{\text{unsup}}(\theta^{(t+1)}) + \alpha \cdot l_{\text{sup}}(\theta^{(t+1)})\\[10pt]
+   l_{\text{semi-sup}}(\theta^{(t+1)})  &=  \left[\sum_{i=1}^{n} \left(\sum_{z}Q_i^{{\color{red}(t+1)}}(z)\log \frac{p(x^{(i)},z;\theta^{(t+1)})}{Q_i^{{\color{red}(t+1)}}(z)}\right)   + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta^{(t+1)})\right)\right]
+\end{align*}
+Therefore, from definition of argmax we know that $
+\text{ELBO}(\theta^{(t+1)})\geq\text{ELBO}(\theta^{(t)})$, giving us
+\begin{align*}
+l_{\text{semi-sup}}(\theta^{(t+1)}) &\geq  \left[\sum_{i=1}^{n} \left(\sum_{z}Q_i^{(t)}(z)\log \frac{p(x^{(i)},z;\theta^{{\color{red}(t)}})}{Q_i^{(t)}(z)}\right)   + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta^{{\color{red}(t+1)}})\right)\right]=
+\end{align*}
+Assuming that at each M-step we are jointly optimising parameters to increase the likelihood using both -- unsupervised and supervised parts, therefore it cannot decrease as to not contradict optimisation process. Thus we can rewrite the above as,
+\begin{align*}
+    &=  \left[\sum_{i=1}^{n} \left(\sum_{z}Q_i^{(t)}(z)\log \frac{p(x^{(i)},z;\theta^{(t)})}{p(z|x^{(i)}; \theta^{(t)})}\right)   + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta^{{\color{red}(t)}})\right)\right]=\\[10pt]
+     &=   \left[\sum_{i=1}^{n} \left(\sum_{z}Q_i^{(t)}(z)\log \frac{\cancel{p(z|x^{(i)};\theta^{(t)})}\cdot p(x^{(i)}; \theta^{(t)})}{\cancel{p(z|x^{(i)};\theta^{(t)})}}\right)   + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta^{{\color{red}(t)}})\right)\right]=\\[10pt]
+     &=  \left[\sum_{i=1}^{n}\log p(x^{(i)}; \theta^{(t)})\underbrace{\sum_{z}Q_i^{(t)}(z)}_{=1}   + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \theta^{{\color{red}(t)}})\right)\right]=\\[10pt]
+     &= l_\text{unsup}(\theta^{(t)}) + \alpha\cdot l_\text{sup}(\theta^{{\color{red}(t)}}).
+\end{align*}
+This shows that semi-supervised likelihood is non-decreasing at each iteration, meaning it will converge.
+%================================================
+\subsection*{Semi-supervised GMM}
+Now we will revisit the Gaussian Mixture Model (GMM), to apply our semi-supervised EM algorithm. Let us consider a scenario where data is generated from $k \in \mathbb{N}$ Gaussian distributions, with unknown means $\mu_j \in \mathbb{R}^d$ and covariances $\Sigma_j \in \mathbb{S}^d_+$ where $j \in \{1,...,k\}$. We have $n$ data points $x^{(i)} \in \mathbb{R}^d$, $i \in \{1,...,n\}$, and each data point has a corresponding latent (hidden/unknown) variable $z^{(i)} \in \{1, . . . , k\}$ indicating which distribution $x^{(i)}$ belongs to. Specifically, $z^{(i)} \sim \text{Multinomial}(\phi)$, such that $\sum_{j=1}^k \phi_j = 1$ and $\phi_j \geq 0$ for all $j$, and $x^{(i)}|z^{(i)} \sim \mathcal{N} (\mu_{z^{(i)}} , \Sigma_{z^{(i)}})$ i.i.d. So, $\mu$, $\Sigma$, and $\phi$ are the model parameters.
+
+We also have additional $\tilde{n}$ data points $\tilde{x}^{(i)} \in \mathbb{R}^d$, $i \in \{1, . . . , \tilde{n}\}$, and an associated observed variable $\tilde{z}^{(i)} \in \{1, . . . , k\}$ indicating the distribution $\tilde{x}^{(i)}$ belongs to. These are known constants (in contrast to $z^{(i)}$ which are unknown random variables). As before, we assume $\tilde{x}^{(i)} |\tilde{z}^{(i)} \sim \mathcal{N} (\mu_{\tilde{z}^{(i)}} , \Sigma_{\tilde{z}^{(i)}})$ i.i.d.
+
+In summary, we have $n + \tilde{n}$ examples, of which $n$ are unlabeled data points x's with unobserved $z^{(i)}$. Our task now will be to apply the semi-supervised EM algorithm to GMMs in order to also leverage the additional $\tilde{n}$ labeled examples, and come up with semi-supervised E-step and M-step update rules specific to GMMs. Whenever required, you can cite the lecture notes for derivations and steps.
+
+\item \textbf{[5 points] Semi-supervised E-Step}.
+Clearly state which are all the latent variables that need to be re-estimated in the E-step. Derive the E-step to re-estimate all the stated latent variables. Your final E-step expression must only involve $x$, $z$, $\mu$, $\Sigma$, $\phi$ and universal constants.
+
+\textbf{Answer:}
+
+In the E-step of the EM algorithm for our semi-supervised Gaussian Mixture Model problem, we need to re-estimate the responsibilities (or weights) $w^{(i)}_j$ for the unsupervised part of the dataset, which represent the posterior probabilities of each latent variable $z^{(i)}$  as
+\[
+w^{(i)}_j = Q_i(z^{(i)} = j) = P (z^{(i)} = j|x^{(i)}; \phi, \mu, \Sigma).
+\]
+In this problem  $z^{(i)}$ are given multinomial (categorical) prior distribution; whereas posterior can be expressed in a general way using Bayesian rule (see  main lecture notes eq. (11.8):) giving us the following expression,
+\[
+Q(z)= p(z|x) = \frac{p(x,z;\theta)}{\sum_z p(x,z;\theta)}  = \frac{p(z=j)p(x|z=j)}{\sum_l p(z=l)p(x|z=l)}
+\]
+In our case these terms correspond to:
+\begin{itemize}
+\item $p(z=j) \equiv \phi_j$  prior, given by the categorical distribution;
+
+\item $p(x|z=j) \equiv \mathcal{N}(x^{(i)}|\mu_j, \Sigma_j) $ is specific mixture component that was responsible for generating an observation
+
+\item $\sum_l p(z=l)p(x|z=l)\equiv \sum_{l=1}^{k} \phi_l \mathcal{N}(x^{(i)}|\mu_l, \Sigma_l)$ is normalising term
+\end{itemize}
+Therefore, the update formula will become
+\[
+\boxed{w_j^{(i)} = \frac{\phi_j \mathcal{N}(x^{(i)}|\mu_j, \Sigma_j)}{\sum_{l=1}^{k} \phi_l \mathcal{N}(x^{(i)}|\mu_l, \Sigma_l)}.}
+\]
+
+%================================================
+
+\item \textbf{\textbf{[10 points]} Semi-supervised M-Step}. Clearly state which are all the parameters that need to be re-estimated in the M-step. Derive the M-step to re-estimate all the stated parameters. Specifically, derive closed form expressions for the parameter update rules for $\mu^{(t+1)}$, $\Sigma^{(t+1)}$ and $\phi^{(t+1)}$ based on the semi-supervised objective.
+
+\textit{Hint:} $\phi^{(t+1)}$ must be constrained to be a probability distribution. This can be accomplished using Lagrange multipliers, as done in the course notes.
+
+\textbf{Answer:}
+We will be using the following expressions for multivariate Gaussian and its $log$-version,
+\[
+\mathcal{N}(\tilde{x}^{(i)} ; \mu_j, \Sigma_j) = \frac{1}{(2\pi)^{d/2} |\Sigma_j|^{1/2}} \exp\left(-\frac{1}{2} (\tilde{x}^{(i)} - \mu_j)^T \Sigma_j^{-1} (\tilde{x}^{(i)} - \mu_j)\right)
+\]
+and 
+\[
+\log\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j) = -\frac{d}{2}\log(2\pi) - \frac{1}{2}\log|\Sigma_j| - \frac{1}{2}(\tilde{x}^{(i)} - \mu_j)^T \Sigma_j^{-1} (\tilde{x}^{(i)} - \mu_j)
+\]
+In the M-step, we are maximize semi-supervised objective, with respect to our parameters, $\theta = \{\phi_{l-1}, \mu_l, \sigma_l\}$, $l=1,..,k$. Therefore, each of these will be updated according to a rule, derived below. Thus, the objective in light of GMM is given from notes for unsupervised part and we only add term arising from supervised part,
+ \begin{align*}
+\sum_{i=1}^{n} \sum_{z^{(i)}} Q_i(z^{(i)}) \log \frac{p(x^{(i)}, z^{(i)}; \phi, \mu, \Sigma)}{Q_i(z^{(i)})} + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \phi, \mu, \Sigma)\right) = \\[10pt]
+= \sum_{i=1}^{n} \sum_{j=1}^{k} Q_i(z^{(i)} = j) \log \frac{p(x^{(i)}|z^{(i)} = j; \mu, \Sigma)p(z^{(i)} = j; \phi)}{ Q_i(z^{(i)} = j)} + \alpha \left(\sum_{i=1}^{\tilde{n}} \log p(\tilde{x}^{(i)}, \tilde{z}^{(i)}; \phi, \mu, \Sigma)\right) =\\[10pt]
+= \sum_{i=1}^{n} \sum_{j=1}^{k} w_j^{(i)}\left[ \log \mathcal{N}(x^{(i)};\mu_j,\Sigma_j) + \log\phi_j - \log w_j^{(i)}\right] + {\color{black}\alpha\left[\sum_{i=1}^{\tilde{n}}\log\sum_{j=1}^{k}\phi_j\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j)\right]}=\\[10pt]
+ \sum_{i=1}^{n} \sum_{j=1}^{k} w_j^{(i)}\left[ \log \mathcal{N}(x^{(i)};\mu_j,\Sigma_j) + \log\phi_j - \log w_j^{(i)}\right] +{\color{black}\alpha \sum\limits_{i=1}^{\tilde{n}}\sum\limits_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\left[\log\phi_j + \log\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j)\right]}.
+\end{align*}
+
+%\textbf{Supporting result:}
+%\begin{tcolorbox}%[colback=gray!20!white,colframe=gray!50!black]
+%Because for supervised part we have access to %$(x^{(i)},z^{(i)})$ pairs, i.e. we know which mixture component generated which data-point, therefore the joint likelihood can be expressed via product,
+%\[
+%\phi_j\prod\limits_{i=1}^{\tilde{n}_1}\mathcal{N}(\tilde{x}^{(1i)};\mu_1,\Sigma_1)\cdot ...\cdot \phi_k\prod\limits_{i=1}^{\tilde{n}_k}\mathcal{N}(\tilde{x}^{(ki)};\mu_k,\Sigma_k)
+%\]
+%Here, we take each product across  $\tilde{n}_j$ numbers of points associated with $j$-th cluster component. We can now take $\log$ of this expression giving us,
+%\[
+%\left[\log\phi_1 +\sum\limits_{i=1}^{\tilde{n}_1}\log\mathcal{N}(\tilde{x}^{(1i)};\mu_1,\Sigma_1)\right]+ ...+\left[\log\phi_k+ \sum\limits_{i=1}^{\tilde{n}_k}\log\mathcal{N}(\tilde{x}^{(ki)};\mu_k,\Sigma_k)\right]
+%\]
+%To make this expression simpler, we can use indicator function to denote that we are summing across points specific to cluster component,
+%\[
+%\sum\limits_{i=1}^{\tilde{n}}\sum\limits_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\left[\log\phi_j + \log\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j)\right].
+%\]
+%Where,
+%\[
+%\log\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j) \propto - \frac{1}{2}\log|\Sigma_j| - \frac{1}{2}(\tilde{x}^{(i)} - \mu_j)^T \Sigma_j^{-1} (\tilde{x}^{(i)} - \mu_j).
+%\]
+%\end{tcolorbox}
+We will now maximize this with respect to specific parameters.
+
+\begin{itemize}
+    \item \textbf{Update for} $\boldsymbol{\mu_l}$. We can notice here that our cost function is composed of two terms unsupervised and supervised; therefore for simplicity we will build upon available results from notes (section 11.4, p.149) and will only compute gradient 
+    for additional term. Further, we will use some results from Matrix Cookbook -- eq.(86). Thus, recall
+    \begin{align*}
+    \nabla_{\mu_l}^\text{unsup} &\equiv \sum_{i=1}^{n}w_l^{(i)}(\Sigma_l^{-1}x^{(i)} - \Sigma_l^{-1}\mu_l);\quad\text{-- given fact.}\\
+    \nabla_{\mu_l}^\text{sup} &\equiv \alpha\nabla_{\mu_l} \sum\limits_{i=1}^{\tilde{n}}\sum\limits_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\log\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j) = \\
+    &=\alpha\nabla_{\mu_l}\sum_{i=1}^{\tilde{n}} \sum\limits_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\left[-\frac{1}{2}(\tilde{x}^{(i)} - \mu_j)^T \Sigma_j^{-1} (\tilde{x}^{(i)} - \mu_j)\right]=\\
+    & = -\frac{\alpha}{2}\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\nabla_{\mu_l}\left[(\tilde{x}^{(i)} - \mu_l)^T \Sigma_l^{-1} (\tilde{x}^{(i)} - \mu_l)\right]\\
+    &\underbrace{=}_{\text{eq.}(86)} \alpha \sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}} \left[\Sigma_l^{-1}(\tilde{x}^{(i)} - \mu_l)\right].
+    \end{align*}
+
+We can now take both terms and equate to 0, in order to solve for $\mu_l$ update rule,
+\begin{align*}
+     \sum_{i=1}^{n}w_l^{(i)}(\Sigma_l^{-1}x^{(i)} - \Sigma_l^{-1}\mu_l) +  \alpha \sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}} \left[\Sigma_l^{-1}(\tilde{x}^{(i)} - \mu_l)\right] = 0
+\end{align*}
+Expanding left hand side in above we get,
+
+
+\begin{align*}
+    &\sum_{i=1}^{n}w_l^{(i)}\Sigma_l^{-1}x^{(i)} -  \sum_{i=1}^{n}w_l^{(i)}\Sigma_l^{-1}\mu_l + \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\Sigma_l^{-1}\tilde{x}^{(i)} - \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\Sigma_l^{-1}\mu_l = 0\quad|\cdot \Sigma_l \\[10pt]
+&\sum_{i=1}^{n}w_l^{(i)}\mu_l +  \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\mu_l =  \sum_{i=1}^{n}w_l^{(i)}x^{(i)} + \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\tilde{x}^{(i)}\quad\Rightarrow\\[10pt]
+& \boxed{\mu_l = \frac{\sum\limits_{i=1}^{n}w_l^{(i)}x^{(i)} + \alpha\sum\limits_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\tilde{x}^{(i)}}{\sum\limits_{i=1}^{n}w_l^{(i)} + \alpha\sum\limits_{i=1}^{\tilde{n}} \mathds{1}_{\{\tilde{z}^{(i)}=l\}}}}
+\end{align*}
+
+\item \textbf{Update for} $\boldsymbol{\Sigma_l}.$ As before, we will compute gradients here for each term -- unsupervised and supervised respectively. Thus, for this we collect terms that depend on actual parameter, and use facts from Matrix Cookbook -- eqs (57, 61),
+\begin{align*}
+    \nabla_{\Sigma_l}^\text{unsup} &\equiv \nabla_{\Sigma_l} \sum\limits_{i=1}^{n}\sum\limits_{j=1}^{k}w_j^{(i)}\log\mathcal{N}(x^{(i)};\mu_l,\Sigma_l) = \\[10pt]
+   & =\nabla_{\Sigma_l} \sum\limits_{i=1}^{n}\sum\limits_{j=1}^{k}w_j^{(i)}\log\left[\frac{1}{(2\pi)^{d/2}|\Sigma_j|^{1/2}}\exp\left\{-\frac{1}{2}(x^{(i)} - \mu_j)^T\Sigma_j^{-1}(x^{(i)} - \mu_j)\right\}\right]=\\[10pt]
+   & = \sum\limits_{i=1}^{n} w_l^{(i)} \nabla_{\Sigma_l}\left[-\frac{1}{2}\log|\Sigma_l| - \frac{1}{2}(x^{(i)} - \mu_l)^T\Sigma_l^{-1}(x^{(i)} - \mu_l)\right] = \\[10pt]
+   &= -\frac{1}{2}\sum\limits_{i=1}^{n} w_l^{(i)}\left[\Sigma_l^{-1} - \Sigma^{-1}_l(x^{(i)} - \mu_l)(x^{(i)} - \mu_l)^T\Sigma^{-1}_l\right].
+\end{align*}
+
+\begin{align*}
+ \nabla_{\Sigma_l}^\text{sup} &\equiv \nabla_{\Sigma_l}\alpha \sum\limits_{i=1}^{\tilde{n}}\sum\limits_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\log\mathcal{N}(\tilde{x}^{(i)};\mu_j,\Sigma_j)=\\[10pt]
+ & =  -\frac{\alpha}{2} \nabla_{\Sigma_l}\sum\limits_{i=1}^{\tilde{n}}\sum\limits_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\left[\log|\Sigma_j|  + (\tilde{x}^{(i)} - \mu_l)^T \Sigma_l^{-1} (\tilde{x}^{(i)} - \mu_l)\right]=\\[10pt]
+ & = -\frac{\alpha}{2}\sum\limits_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\left[\Sigma_l^{-1} - \Sigma_l^{-1}(\tilde{x}^{(i)} - \mu_l)(\tilde{x}^{(i)} - \mu_l)^T\Sigma_l^{-1}\right].
+\end{align*}
+Now, we can add both gradient terms together and equate to 0,
+\[
+\nabla_{\Sigma_l}^\text{unsup} +  \nabla_{\Sigma_l}^\text{sup} = 0
+\]
+Solving this for $\Sigma_l$ will result in an update rule,
+\begin{align*}
+     &\sum\limits_{i=1}^{n} w_l^{(i)}\left[\Sigma_l^{-1} - \Sigma^{-1}_l(x^{(i)} - \mu_l)(x^{(i)} - \mu_l)^T\Sigma^{-1}_l\right] =-\alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\left[\Sigma_l^{-1} - \Sigma_l^{-1}(\tilde{x}^{(i)} - \mu_l)(\tilde{x}^{(i)} - \mu_l)^T\Sigma_l^{-1}\right] 
+\end{align*}
+We can multiply both sides of this equation by $\Sigma_l$ twice, giving us,
+\begin{align*}
+     &\sum\limits_{i=1}^{n} w_l^{(i)}\left[\Sigma_l - (x^{(i)} - \mu_l)(x^{(i)} - \mu_l)^T\right] =- \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\left[\Sigma_l - (\tilde{x}^{(i)} - \mu_l)(\tilde{x}^{(i)} - \mu_l)^T\right] \\[10pt]
+     & \sum\limits_{i=1}^{n} w_l^{(i)}\Sigma_l + \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\Sigma_l = \sum\limits_{i=1}^{n} w_l^{(i)}(x^{(i)} - \mu_l)(x^{(i)} - \mu_l)^T + \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}(\tilde{x}^{(i)} - \mu_l)(\tilde{x}^{(i)} - \mu_l)^T\\[10pt]
+    & \boxed{\Sigma_l = \frac{\sum\limits_{i=1}^{n} w_l^{(i)}(x^{(i)} - \mu_l)(x^{(i)} - \mu_l)^T + \alpha\sum\limits_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}(\tilde{x}^{(i)} - \mu_l)(\tilde{x}^{(i)} - \mu_l)^T}{\sum\limits_{i=1}^{n} w_l^{(i)} + \alpha\sum\limits_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}}}
+\end{align*}
+
+\item \textbf{Update for} $\boldsymbol{\phi_l}.$
+Finally, we can collect together all the terms that depend on $\phi_j$, we find that we need to maximize,
+\[
+\sum\limits_{i=1}^{n}\sum_{j=1}^{k}w_j^{(i)}\log\phi_j + \alpha\sum_{i=1}^{\tilde{n}}\sum_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\log\phi_j  + \beta(\sum_{j=1}^{k}\phi_j - 1),
+\]
+here the last term was introduced to incorporate constraints imposed on $\phi_j$ by using Lagrange multiplier $\beta$ (as per p 150 in main lecture notes). We can now compute the gradient with respect to $\phi_l$, giving us,
+\begin{align*}
+\nabla_{\phi_l} &\equiv \nabla_{\phi_l} \left[\sum\limits_{i=1}^{n}\sum_{j=1}^{k}w_j^{(i)}\log\phi_j + \alpha\sum_{i=1}^{\tilde{n}}\sum_{j=1}^{k}\mathds{1}_{\{\tilde{z}^{(i)}=j\}}\log\phi_j + \beta(\sum_{j=1}^{k}\phi_j - 1)\right]=\\[10pt]
+& = \sum\limits_{i=1}^{n}\frac{w_l^{(i)}}{\phi_l} + \alpha\sum_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}\frac{1}{\phi_j} + \beta.
+\end{align*}
+Setting this term for 0, we get,
+\[
+ \sum\limits_{i=1}^{n}\frac{w_l^{(i)}}{\phi_l} +\alpha\sum\limits_{i=1}^{\tilde{n}}\frac{\mathds{1}_{\{\tilde{z}^{(i)}=l\}}}{\phi_l} + \beta= 0\quad\Rightarrow\quad \phi_l = -\frac{\sum\limits_{i=1}^{n}w_l^{(i)} + \alpha \sum\limits_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}} }{\beta}
+\]
+We can now use constraint that $\sum_j^k\phi_j = 1$ to get expression for $\beta$,
+\begin{align*}
+\sum_{j=1}^{k}\phi_j = -\frac{\sum\limits_{i=1}^{n}\sum\limits_{j=1}^{k}w_j^{(i)} + \alpha \sum\limits_{i=1}^{\tilde{n}}\sum\limits_{j=1}^k\mathds{1}_{\{\tilde{z}^{(i)}=j\}}}{\beta}\\[10pt]
+1 = -\frac{\sum\limits_{i=1}^{n} 1 +  \alpha \sum\limits_{i=1}^{\tilde{n}} 1}{\beta}\quad\Rightarrow\quad \beta = -(n+\alpha\tilde{n})
+\end{align*}
+Therefore, final expression for $\phi_l$ update rule is,
+\[
+\boxed{\phi_l = \frac{\sum\limits_{i=1}^{n}w_l^{(i)} + \alpha \sum\limits_{i=1}^{\tilde{n}}\mathds{1}_{\{\tilde{z}^{(i)}=l\}}}{n+\alpha\tilde{n}}}
+\]
+\end{itemize}
+
+%================================================
+
+\item  \textbf{[5 points]} Classical (Unsupervised) EM Implementation. For this sub-question, we are only going to consider the n unlabelled examples. Follow the instructions in \texttt{src/semi supervised em/gmm.py} to implement the traditional EM algorithm, and run it on the unlabelled data-set until convergence.
+Run three trials and use the provided plotting function to construct a scatter plot of the resulting assignments to clusters (one plot for each trial). Your plot should indicate cluster assignments with colors they got assigned to (i.e., the cluster which had the highest probability in the final E-step).
+Submit the three plots obtained above in your write-up.
+
+
+\textbf{Answer:}
+
+Please see plots for trial 1 .
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{pred_0.pdf}
+    \label{fig:pred0}
+\end{figure}
+
+Please see plots for trial 2.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{pred_1.pdf}
+    \label{fig:pred1}
+\end{figure}
+
+Please see plots for trial 3.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{pred_2.pdf}
+    \label{fig:pred2}
+\end{figure}
+%================================================
+
+ 
+\item \textbf{[7 points]} Semi-supervised EM Implementation. Now we will consider both the labelled and unlabelled examples (a total of $ n + \tilde{n} $), with 5 labelled examples per cluster. We have provided starter code for splitting the dataset into matrices \texttt{x} and \texttt{x\_tilde} of unlabelled and labelled examples respectively. Add to your code in \texttt{src/semi\_supervised\_em/gmm.py} to implement the modified EM algorithm, and run it on the dataset until convergence.
+
+Create a plot for each trial, as done in the previous sub-question.
+
+\textbf{Submit the three plots obtained above in your write-up.}
+
+\textbf{Answer:}
+
+Please see trial 1 result:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{pred_ss_0.pdf}
+    \label{fig:baseline}
+\end{figure}
+
+Please see trial 2 result:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{pred_ss_1.pdf}
+    \label{fig:baseline}
+\end{figure}
+
+Please see trial 3 result:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{pred_ss_2.pdf}
+    \label{fig:baseline}
+\end{figure}
+
+
+\item \textbf{[3 points]} Comparison of Unsupervised and Semi-supervised EM. Briefly describe
+the differences you saw in unsupervised vs. semi-supervised EM for each of the following:
+
+\textbf{i.} Number of iterations taken to converge.
+
+\textbf{Answer:}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{l|c|c}
+         &  Unsupervised model iterations & Semi-supervised model iterations\\
+         \hline
+         \hline
+         Trial 1 & 156 & 59\\[10pt]
+         Trial 2 & 63 & 81\\[10pt]
+         Trial 3 & 97 & 56\\
+         \hline
+         On average & \textbf{105} & \textbf{65}
+    \end{tabular}
+    \label{tab:1}
+\end{table}
+
+We can see that on average, using semi-supervised model we have reached convergence much faster, i.e. using fewer iterations.
+
+
+\textbf{ii.} Stability (i.e., how much did assignments change with different random initializations?) 
+
+\textbf{Answer:}
+
+From the output plots, we observe that for the semi-supervised model, we consistently reached the same final cluster indicator vector across all three trials, indicating that the final assignments were identical, and thus are stable. However, the same cannot be said for the purely unsupervised model, where the final cluster assignments varied across trials.  
+
+However, it is worth noting that the final assignments in trials 2 and 3 for the unsupervised model were very similar when we disregard the color scheme; in mixture models, we do not explicitly label clusters. 
+
+From this, we can infer that performance of the semi-supervised model was significantly more stable on the given dataset compared to the unsupervised model.
+
+\textbf{iii.} Overall quality of assignments.
+Note: The dataset was sampled from a mixture of three low-variance Gaussian distributions, and a fourth, high-variance Gaussian distribution. This should be useful in determining the overall quality of the assignments that were found by the two algorithms.
+
+\textbf{Answer:}
+
+From the plots, it is evident that the data was simulated from a mixture model: three Gaussian distributions exhibited a ``tight" covariance structure, and one displayed a ``broad" structure, causing points to cluster closer or spread out, respectively. This configuration leads to overlapping clusters, which means that in the absence of prior knowledge (using only the unsupervised model), points from the broad cluster were often mislabeled as belonging to clusters with a tighter covariance structure or split clusters.  However, by incorporating supplementary information (points with known cluster assignments), the semi-supervised model could more accurately discern the underlying structure in the data, resulting in more appropriate and reliable cluster assignments.
+
+More formally, the quality of predicted assignments could be better understood if we could compare them to original indicator variables obtained while simulating this dataset; provided that such information is available to us,  we could use \href{https://en.wikipedia.org/wiki/Rand_index}{adjusted RAND index} to achieve this.
+
+
+
+\end{enumerate}
+
+
+%%%%%%%%%%%%%%%%%
+%   Problem 3   %
+%%%%%%%%%%%%%%%%%
+
+\section*{Problem 3: PCA}
+
+
+Suppose we are given a set of points $\{x^{(1)},\ldots,x^{(n)}\}$. In class, we showed that PCA finds the "variance maximizing" directions on which to project the data:
+\[
+u_1 = \arg\max_{\substack{u:\\\|u\|_2=1}} \sum_{i=1}^{n} (x^{(i)\top} u)^2
+\]
+In this problem, we find another interpretation of PCA.
+Let us assume that we have, as usual, preprocessed the data to have zero-mean and unit variance in each coordinate. For a given unit-length vector $u$, let $f_u(x)$ be the projection of point $x$ onto the direction given by $u$. In other words, if $V = \{\alpha u : \alpha \in \mathbb{R}\}$, then
+\[
+f_u(x) = \arg \min_{v \in V} \|x - v\|_2.
+\]
+Show that the unit-length vector $u$ that minimizes the mean squared error between projected points and original points corresponds to the first principal component for the data. In other words, show that
+\[
+u_1 = \arg \min_{\substack{u:\|u\|_2=1}} \sum_{i=1}^{n} \|x^{(i)} - f_u(x^{(i)})\|_2^2.
+\]
+gives the first principal component.
+
+\textbf{Remark.} If we are asked to find a $k$-dimensional subspace onto which to project the data so as to minimize the sum of squared distances between the original data and their projections, then we should choose the $k$-dimensional subspace spanned by the first $k$ principal components of the data. This problem shows that this result holds for the case of $k = 1$.
+
+\textbf{Answer:}
+
+Statements:
+\begin{itemize}
+
+\item Here $f_{u}(x^{(i)})$ denotes projection - it is a point thet represents the projection of the point $x^{(i)}$ onto the direction given by the unit vector $u$. Specifically, it's the point on the line (or subspace) spanned by the vector $u$ that is closest to $x^{(i)}$.
+
+\item $V= \{\alpha u : \alpha \in \mathbb{R}\}$ defines  here the space (in this case, a line) onto which we are projecting containing all possible scalar multiples of the vector $u$. I.e. this set represents a line in the space that passes through the origin and is oriented in the direction of $u$.
+
+ \end{itemize}
+
+ The $f_u(x)$ can be understood as a specific point in line $V$ that represents a shortest distance from $x$ to line V:
+ \[
+f_u(x) = \arg \min_{v \in V} \|x - v\|_2.
+\]
+ From notes (p.159) we know that given a
+unit vector $u$ and a point $x$, the length of the projection of $x$ onto $u$ is given by $x^T u$. I.e., if $x^{(i)}$ is a point in the data set, then its projection onto $u$ is distance $x^{(i)^T} u$ from the origin. We will need to consider this point in it's vector form $(x^{(i)^T}u)u
+$ (scalar projection).
+
+We will use this fact: $\|a-b\|^2_2 = a^Ta - 2a^Tb + b^Tb$ to unpack the cost function,
+\begin{align*}
+   J(u)&\equiv \sum_{i=1}^{n} \|x^{(i)} - f_u(x^{(i)})\|_2^2 = \sum_{i=1}^{n} \|x^{(i)} - (x^{(i)^T} u)u\|_2^2 = \\[10pt]
+   &=\sum_{i=1}^{n}\left\{x^{(i)^T}x^{(i)} - 2 x^{(i)^T}(x^{(i)^T}u)u + [(x^{(i)^T}u)u]^T[(x^{(i)^T}u)u]\right\} = \\[10pt]
+   &=\sum_{i=1}^{n}\left\{x^{(i)^T}x^{(i)} - 2 (x^{(i)^T}u)^2 + \underbrace{[x^{(i)^T}u]^{T}}_{\#^T = 
+   \#}u^T \underbrace{x^{(i)^T}u}_{\#}u    \right\} = \\[10pt]
+   &= \sum_{i=1}^{n}\left\{x^{(i)^T}x^{(i)} - 2 (x^{(i)^T}u)^2 + (x^{(i)^T}u)^2 \underbrace{u^Tu}_{=1} \right\}= \\[10pt]
+   &= \sum_{i=1}^{n}\left\{x^{(i)^T}x^{(i)} - (x^{(i)^T}u)^2\right\}.
+\end{align*}
+We notice here that the first term in the sum does not depend on $u$, so we can disregard it. Looking closer at the second term we notice that inside the brackets the term will be always non-negative; it also  looked similar to the definition of PCA in terms of
+``variance maximization". Therefore by maximising this term (variance), we will be minimising the  cost $J(u)$.  
+
+
+
+%We can now compute the gradient of cost function with respect to u, however prior to this we will add a constraint, $\|u\|_2 = 1$ via Lagrangian multiplyer, 
+%\begin{align*}
+%    \sum_{i=1}^{n}\left\{x^{(i)^T}x^{(i)} - (x^{(i)^T}u)^2\right\} + \lambda(u^Tu - 1);
+%\end{align*}
+%Thus, gradient,
+%\begin{align*}
+%    \nabla_uJ(u)\equiv -2\sum_{i=1}^n x^{(i)^T}ux^{(i)} + \lambda u;
+%\end{align*}
+%For simplicity we can use the following notation:
+%\[
+%S = \frac{1}{n}\sum_{i=1}^{n} x^{(i)}x^{(i)^T}\quad\Rightarrow\quad \sum_{i=1}^{n} x^{(i)}x^{(i)^T} = nS
+%\]
+%Thus,  by equating gradient to 0, we can rewrite it as,
+%\begin{align*}
+%    \nabla_uJ(u)\equiv &-2\sum_{i=1}^n x^{(i)^T}ux^{(i)} + \lambda u=0;\\[10pt]
+%    &2\sum_{i=1}^n x^{(i)}x^{(i)^T}u = \lambda u\\[10pt]
+%    &2nSu = \lambda u\quad\Rightarrow\quad Su = \lambda^{\prime}u\quad\text{where }\lambda^{\prime} = \frac{\lambda}{2n}.
+%\end{align*}
+%We know that $S$ is sample covariance matrix, which is PSD; thus above %equation correspond to the classic eigenvalue problem; here $u$ is eigenvector of $S$ with eigenvalue $\lambda^{\prime}$.  The eigenvector corresponding to the largest eigenvalue will be first principal component $u_1$, 
+%\[
+%Su = \lambda u\quad| u^T\quad\Rightarrow\quad u^TSu = \lambda %u^Tu\quad\Rightarrow\quad u^TSu = \lambda 
+%\]
+%as this is equivalent to finding the direction 
+%of $u$ that maximizes variance (and it is $u_1$).
+
+
+%================================================
+
+
+
+%%%%%%%%%%%%%%%%%
+%   Problem 4   %
+%%%%%%%%%%%%%%%%%
+
+\section*{Problem 4: Independent components analysis}
+
+While studying Independent Component Analysis (ICA) in class, we made an informal argu- ment about why Gaussian distributed sources will not work. We also mentioned that any other distribution (except Gaussian) for the sources will work for ICA, and hence used the logistic distribution instead. In this problem, we will go deeper into understanding why Gaussian dis- tributed sources are a problem. We will also derive ICA with the Laplace distribution, and apply it to the cocktail party problem.
+
+Reintroducing notation, let $s \in \mathbb{R}^d$ be source data that is generated from $d$ independent sources. Let $x \in \mathbb{R}^d$ be observed data such that $x = As$, where $A \in \mathbb{R}^{d \times d}$ is called the mixing matrix. We assume $A$ is invertible, and $W = A^{-1}$ is called the unmixing matrix. So, $s = Wx$. The goal of ICA is to estimate $W$. Similar to the notes, we denote $w_j^\top$ to be the $j$th row of $W$. Note that this implies that the $j$th source can be reconstructed with $w_j$ and $x$, since $s_j = w_j^\top x$. We are given a training set $\{x^{(1)}, \ldots, x^{(n)}\}$ for the following sub-questions. Let us denote the entire training set by the design matrix $X \in \mathbb{R}^{n \times d}$ where each example corresponds to a row in the matrix.
+
+
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{[5 points] Gaussian source}
+
+    For this sub-question, we assume sources are distributed according to a standard normal
+distribution, i.e., $s_j \sim \mathcal{N} (0, 1)$, $j = \{1, \ldots, d\}$. The log-likelihood of our unmixing matrix, as described in the notes, is
+\[ 
+\ell(W) = \sum_{i=1}^{n} \left(\log |W| + \sum_{j=1}^{d}  \log g'(w^T_j x^{(i)})\right), 
+\]
+where $g$ is the cumulative distribution function (CDF), and $g'$ is the probability density function (PDF) of the source distribution (in this sub-question it is a standard normal distribution). Whereas in the notes we derive an update rule to train $W$ iteratively, for the case of Gaussian distributed sources, we can analytically reason about the resulting $W$. 
+
+Try to derive a closed-form expression for $W$ in terms of $X$ when $g$ is the standard normal CDF. Deduce the relation between $W$ and $X$ in the simplest terms, and highlight the ambiguity (in terms of rotational invariance) in computing $W$.
+
+
+\textbf{Answer:}
+
+Here we are given some data $s \in \mathbb{R}^d$ that is generated via $d$ independent sources and we  model the observations via
+\[x = As,
+\]
+where $A$ is an unknown square matrix called the mixing matrix. Each row in dataset $x$ contains repeated observations  $\{x^{(i)}; i = 1, \ldots , n\}$, with goal to recover the sources $s^{(i)}$ that generated our observations ($x^{(i)} = As^{(i)}$).
+
+For this we can consider the reverse relationship,
+\[
+W = A^{-1}X \quad\Rightarrow\quad S = WX;
+\]
+where $W$ is unmixing matrix.
+
+The $log$-likelihood is given by
+\[ 
+\ell(W) = \sum_{i=1}^{n} \left(\log |W| + \sum_{j=1}^{d}  \log g'(w^T_j x^{(i)})\right), 
+\]
+We can replace $g'$ with Gaussian term:
+\[
+g^{\prime}(z) = \frac{1}{\sqrt{2\pi}}\exp{\left(-\frac{z^2}{2}\right)}\quad\Rightarrow\quad \log g^{\prime}(z) = \log\frac{1}{\sqrt{2\pi}} - \frac{z^2}{2}
+\]
+giving us,
+\begin{align*}
+\ell(W) &= \sum_{i=1}^{n} \left(\log |W| - \frac{1}{2}\sum_{j=1}^{d}(w^T_jx^{(i)})^2\right) = \\[10pt]
+&= \sum_{i=1}^{n}\log |W| - \frac{1}{2}\sum_{i=1}^{n}\sum_{j=1}^{d}(w^T_jx^{(i)})^2 = \\[10pt]
+& = \sum_{i=1}^{n}\log |W| - \frac{1}{2}\|W^TX\|_F^2\quad\text{\href{https://en.wikipedia.org/wiki/Matrix_norm}{see here}}.
+\end{align*}
+Thus, we can now differentiate it with respect to $W$;  for this we will use result (49) and (132) from Matrix cookbook,
+\begin{align*}
+    \nabla_W \ell(W) &\equiv \nabla_W\sum_{i=1}^{n}\log|W| - \nabla_W\frac{1}{2}\|W^TX\|_F^2 = \\[10pt]
+    & = \sum_{i=1}^{n}\frac{1}{|W|}\cdot |W| (W^{-1})^T - \frac{1}{2}\cdot2W^TX X^T = \\[10pt]
+    & = n W^{-1^T} - W^TXX^T.
+\end{align*}
+Equating this to 0, we get that, 
+\[
+W^{-1^T} = \frac{1}{n}XX^TW\quad|\cdot W^{-1}  \quad\Rightarrow\quad W^{-1^T}W^{-1} = \frac{1}{n}X X^{T}.
+\]
+Now we will work on left side to put the whole equation in different format. Here we will use the following results from the Matrix Cookbook, i.e. eqs: (3), (1)
+    \[
+    W^{-1^T}W^{-1} \stackrel{eq. (3)}{=} W^{T^{-1}}W^{-1}\stackrel{eq. (1)}{=} (WW^T)^{-1}
+    \]
+ Therefore, we arrive at:
+\[
+(WW^T)^{-1} = \frac{1}{n} X X^T \quad\Rightarrow\quad (W^TW)^{-1} = \frac{1}{n} X X^T
+\]
+We can now apply rotation matrix by picking $R$ to be an orthogonal matrix,  so that $RR^T$ =$R^TR=I$. If we denote now $W = R\tilde{W}$ it follows that $W^T = (R\tilde{W})^T = \tilde{W}^T R^T$ therefore rewriting above equation as using this result,
+\begin{align*}
+    \tilde{W}^T \underbrace{R^T R}_{=:I} \tilde{W} & = \frac{1}{n}XX^T \\[10pt]
+    \tilde{W}^T\tilde{W} &= \frac{1}{n}XX^T\quad\text{matching result on $W$ \href{https://www.microsoft.com/en-us/research/uploads/prod/2006/01/Bishop-Pattern-Recognition-and-Machine-Learning-2006.pdf}{(12.39)}}
+\end{align*}
+What we have shown here is that there exist a whole family of matrices and we cannot distinguish between latent variables where these differ simply by a rotation in latent space. Thus, assuming Gaussian latent variable distribution is insufficient to find independent components.
+
+%================================================
+
+
+\item \textbf{[5 points] Laplace source.} 
+
+For this sub-question, we assume sources are distributed according to a standard Laplace
+distribution, i.e., $s_i \sim \mathcal{L}(0, 1)$. The Laplace distribution $\mathcal{L}(0, 1)$ has PDF $f_\mathcal{L}(s) = \frac{1}{2} \exp(-|s|)$. With this assumption, derive the update rule for a single example in the form
+\[ W := W + \alpha (\ldots) . \]
+
+
+
+\textbf{Answer:}
+
+Here we utilise same likelihood form as before, however in this case, $g'$ takes form of Lapace distribution. We will not be considering sum over $n$, as update is meant to be computed for a single $s_i$. Thus, we have the following likelihood,
+\begin{align*}
+\ell(W) & = \log(|W|) + \sum_{j=1}^{d}\log\frac{1}{2}\exp\left\{-|w^T_{j}x^{(i)}|\right\} =  \log(|W|) + \sum_{j=1}^{d}\left(\log\frac{1}{2}  - |w^T_{j}x^{(i)}|\right)=\\
+& = \log(|W|) + \sum_{j=1}^{d}\log\frac{1}{2} - \sum_{j=1}^{d}|w^T_{j}x^{(i)}|.
+\end{align*}
+To compute the gradient of this $\ell$ we will use square root representation for computing derivative of absolute values.
+
+
+\textbf{Square root approach to compute derivatives of absolute functions:}
+\begin{tcolorbox}[colback=gray!20!white,colframe=gray!50!black]
+Given the function:
+\[ f(x) = |ax| \]
+To differentiate this, we introduce a substitution:
+\begin{align*}
+u &= ax\\
+f(x) &= |u| = \sqrt{u^2}
+\end{align*}
+Using the chain rule:
+\[ f'(x) = \frac{df}{du} \cdot \frac{du}{dx} \]
+The derivative with respect to \(u\):
+\[ f^{\prime}(x) = \frac{1}{2} \cdot \frac{2u}{\sqrt{u^2}} = \frac{u}{\sqrt{u^2}}\frac{du}{dx} = \frac{au}{|au|}\cdot a \]
+Given this formula derived via the chain rule we use it to obtain our derivatives:
+\[
+\frac{w^T_j x^{(i)}}{|w^T_j x^{(i)}|} \cdot x^{(i)}. \]
+\end{tcolorbox}
+Thus, using this result and results from section 4(a) we get,
+\[
+\nabla_W\ell(W)\equiv W^{-1^T} - \sum_{j=1}^{d} \frac{w^T_j x^{(i)}}{|w^T_j x^{(i)}|}x^{(i)}.
+\]
+So the update rule will be,
+\[
+W := W + \alpha\left(W^{-1^T} - \sum_{j=1}^{d} \frac{w^T_j x^{(i)}}{|w^T_j x^{(i)}|}x^{(i)}\right)
+\]
+Last term represent a matrix of same size as $W_{d\times d}$.  To see this we can expand above term,
+\[
+W := W + \alpha\left(W^{-1^T} -\begin{bmatrix}
+\frac{w^T_1 x^{(i)}}{|w^T_1 x^{(i)}|}\\[8pt]
+\cdots\\
+\frac{w^T_d x^{(i)}}{|w^T_d x^{(i)}|}
+\end{bmatrix}x^{(i)^T}\right).
+\]
+
+The above formula is true,  because  the derivative of absolute value function can be computed using alternative -- sign function formulation:
+\begin{tcolorbox}[colback=gray!20!white,colframe=gray!50!black]
+The sign function can be denoted as 
+\( \text{sgn}(x) \) and defined as:
+
+\[
+\text{sgn}(x) = 
+\begin{cases} 
+1 & \text{if } x > 0 \\
+0 & \text{if } x = 0 \\
+-1 & \text{if } x < 0 
+\end{cases}
+\]
+Provided the absolute value of a function $ f(x) $ is $ |f(x)| $,  the absolute value can be expressed in terms of the sign function :
+\[
+|f(x)| = f(x) \cdot \text{sgn}(f(x)) 
+\]
+Taking the derivative with respect to \( x \), we get:
+\[ \frac{d|f(x)|}{dx} = \frac{df(x)}{dx} \cdot \text{sgn}(f(x)) \]
+In our case this would translate to,
+\[
+\text{sgn}(w^T_j x^{(i)}) \cdot x^{(i)}
+\]
+If we look closer at this, it does match my previous result, because, sign function can be expressed as,
+\[
+\text{sgn}(w^T_j x^{(i)}) = \frac{|w^T_j x^{(i)}|}{w^T_j x^{(i)}} = \frac{w^T_j x^{(i)}}{|w^T_j x^{(i)}|}. 
+\]
+
+\end{tcolorbox}
+Meaning, expressions are equivalent
+\[
+W := W + \alpha\left(W^{-1^T} -\begin{bmatrix}
+\text{sgn}(w^T_1 x^{(i)})\\[8pt]
+\cdots\\
+\text{sgn}(w^T_d x^{(i)})
+\end{bmatrix}x^{(i)^T}\right).
+\]
+
+%================================================
+
+\item \textbf{[5 points] Cocktail Party Problem}
+
+For this question you will implement the Bell and Sejnowski ICA algorithm, but assuming a Laplace source (as derived in part-b), instead of the Logistic distribution covered in class. The file \texttt{src/ica/mix.dat} contains the input data which consists of a matrix with 5 columns, with each column corresponding to one of the mixed signals xi. The code for this question can be found in \texttt{src/ica/ica.py.}
+Implement the update W and unmix functions in \texttt{src/ica/ica.py.}
+
+You can then run \texttt{ica.py} in order to split the mixed audio into its components. The mixed audio tracks are written to \texttt{mixed}$\_$\texttt{i.wav} in the output folder. The split audio tracks are written to \texttt{split}$\_$\texttt{i.wav} in the output folder.
+To make sure your code is correct, you should listen to the resulting unmixed sources. (Some overlap or noise in the sources may be present, but the different sources should be pretty clearly separated.)
+
+\textbf{Submit the full unmixing matrix W (5×5) that you obtained, by including the \texttt{W.txt} the code outputs along with your code.}
+
+If your implementation is correct, your output split \texttt{0.wav} should sound similar to the file \texttt{correct}$\_$\texttt{split}$\_$\texttt{0.wav} included with the source code.
+
+Note: In our implementation, we \textit{anneal} the learning rate $\alpha$ (slowly decreased it over time) to speed up learning. In addition to using the variable learning rate to speed up convergence, one thing that we also do is to choose a random permutation of the training data, and running stochastic gradient ascent visiting the training data in that order (each of the specified learning rates was then used for one full pass through the data).
+
+\textbf{Answer:}
+
+For convenience, W matrix is summarised below,
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{W.png}
+    \label{fig:W}
+\end{figure}
+%================================================
+
+
+\end{enumerate}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%
+%   Problem 5   %
+%%%%%%%%%%%%%%%%%
+
+\section*{Problem 5: Reinforcement Learning: The inverted pendulum}
+
+
+In this problem, you will apply reinforcement learning to automatically design a policy for a difficult control task, without ever using any explicit knowledge of the dynamics of the underlying system.
+
+The problem we will consider is the inverted pendulum or the pole-balancing problem\footnote{The dynamics are adapted from \url{http://www-anw.cs.umass.edu/rlr/domains.html}}.
+
+Consider the figure shown. A thin pole is connected via a free hinge to a cart, which can move laterally on a smooth table surface. The controller is said to have failed if either the angle of the pole deviates by more than a certain amount from the vertical position (i.e., if the pole falls over), or if the cart’s position goes out of bounds (i.e., if it falls off the end of the table). Our objective is to develop a controller to balance the pole with these constraints, by appropriately having the cart accelerate left and right.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{pendulum.png}
+    \label{fig:pendulum}
+\end{figure}
+We have written a simple simulator for this problem. The simulation proceeds in discrete time cycles (steps). The state of the cart and pole at any time is completely characterized by 4 parameters: the cart position \(x\), the cart velocity \(\dot{x}\), the angle of the pole \(\theta\) measured as its deviation from the vertical position, and the angular velocity of the pole \(\dot{\theta}\). Since it would be simpler to consider reinforcement learning in a discrete state space, we have approximated the state space by a discretization that maps a state vector \((x, \dot{x}, \theta, \dot{\theta})\) into a number from 0 to \text{NUM\_STATES} - 1. Your learning algorithm will need to deal only with this discretized representation of the states.
+
+At every time step, the controller must choose one of two actions - push (accelerate) the cart right, or push the cart left. (To keep the problem simple, there is no \textit{do-nothing} action.) These are represented as actions 0 and 1 respectively in the code. When the action choice is made, the simulator updates the state parameters according to the underlying dynamics and provides a new discretized state.
+
+We will assume that the reward \(R(s)\) is a function of the current state only. When the pole angle goes beyond a certain limit or when the cart goes too far out, a negative reward is given, and the system is reinitialized randomly. At all other times, the reward is zero. Your program must learn to balance the pole using only the state transitions and rewards observed.
+
+The files for this problem are in \texttt{src/cartpole/} directory. Most of the code has already been written for you, and you need to make changes only to \texttt{cartpole.py} in the places specified. This file can be run to show a display and to plot a learning curve at the end. Read the comments at the top of the file for more details on the working of the simulation.
+
+To solve the inverted pendulum problem, you will estimate a model (i.e., transition probabilities and rewards) for the underlying MDP, solve Bellman’s equations for this estimated MDP to obtain a value function, and act greedily with respect to this value function.
+
+Briefly, you will maintain a current model of the MDP and a current estimate of the value function. Initially, each state has estimated reward zero, and the estimated transition probabilities are uniform (equally likely to end up in any other state).
+
+During the simulation, you must choose actions at each time step according to some current policy. As the program goes along taking actions, it will gather observations on transitions and rewards, which it can use to get a better estimate of the MDP model. Since it is inefficient to update the whole estimated MDP after every observation, we will store the state transitions and reward observations each time, and update the model and value function/policy only periodically. Thus, you must maintain counts of the total number of times the transition from state \(s_i\) to state \(s_j\) using action \(a\) has been observed (similarly for the rewards). Note that the rewards at any state are deterministic, but the state transitions are not because of the discretization of the state space (several different but close configurations may map onto the same discretized state).
+
+Each time a failure occurs (such as if the pole falls over), you should re-estimate the transition probabilities and rewards as the average of the observed values (if any). Your program must then use value iteration to solve Bellman’s equations on the estimated MDP, to get the value function and new optimal policy for the new model. For value iteration, use a convergence criterion that checks if the maximum absolute change in the value function on an iteration exceeds some specified tolerance.
+
+Finally, assume that the whole learning procedure has converged once several consecutive attempts (defined by the parameter \texttt{NO\_LEARNING\_THRESHOLD}) to solve Bellman’s equation all converge in the first iteration. Intuitively, this indicates that the estimated model has stopped changing significantly.
+
+The code outline for this problem is already in \texttt{cartpole.py}, and you need to write code fragments only at the places specified in the file. There are several details (convergence criteria, etc.) that are also explained inside the code. Use a discount factor of \(\gamma = 0.995\).
+
+Implement the reinforcement learning algorithm as specified and run it.
+\begin{itemize}
+    \item How many trials (how many times did the pole fall over or the cart fall off) did it take before the algorithm converged? Hint: if your solution is correct, on the plot, the red line indicating smoothed log num steps to failure should start to flatten out at about 60 iterations.
+
+    \textbf{Answer:}
+
+    It is approximately around after 50 -- trials for seed 0, if we take a bit longer burn-in period. However, I think it could be declared a bit earlier -- after approximately 40 trials.
+    
+    \item Plot a learning curve showing the number of time-steps for which the pole was balanced on each trial. Python starter code already includes the code to plot. Include it in your submission.
+
+    \textbf{Answer:}
+
+    Please see plot corresponding to seed 0,
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{cartpole.png}
+    \label{fig:cartpole}
+\end{figure}
+
+    
+    \item Find the line of code that says \texttt{np.random.seed}, and rerun the code with the seed set to 1, 2, and 3. What do you observe? What does this imply about the algorithm?
+
+    \textbf{Answer:}
+
+    Different plots here represent different seed values from 0 to 3. We observe that the algorithm exhibits sensitivity to different seed values, which translates to varying behaviors and results, such as different number of trials required to reach convergence.
+
+    In the context of real-world applications, this sensitivity is not a desirable feature. Ideally, we want to build an algorithm that provides consistent and robust outputs (despite being stochastic in nature) in the face of minor perturbations or changes, such as seed values. This can also highlight the need to consider model refinement and the trade-off between complexity and generalization.
+    
+\end{itemize}
+
+
+
+%===================================================
+
+
+\end{document}
